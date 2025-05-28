@@ -97,18 +97,64 @@ poetry run forbookmarks process [OPTIONS]
     poetry run forbookmarks process -f firefox_bookmarks.json -i json -x "python another_script.py" --args --no-env-vars
     ```
 
-## Development
+## HACKING
 
-To run tests:
+This section provides instructions for developers working on `forbookmarks`.
+
+### Setup Development Environment
+
+1.  **Clone the repository (if you haven't already):**
+    ```bash
+    # git clone <repository_url>
+    # cd forbookmarks
+    ```
+
+2.  **Install dependencies, including development tools:**
+    Poetry will create a virtual environment and install all dependencies, including those needed for development and linting.
+    ```bash
+    poetry install --with dev
+    ```
+
+### Running Linters and Type Checker
+
+We use `flake8` for style checking, `pylint` for more in-depth linting, and `mypy` for static type checking.
+
+*   **Flake8 (Style Checking):**
+    To check the codebase for PEP 8 compliance and other style issues:
+    ```bash
+    poetry run flake8 forbookmarks/ tests/
+    ```
+
+*   **Pylint (Linting):**
+    To perform a more detailed analysis of the code:
+    ```bash
+    poetry run pylint forbookmarks/ tests/
+    ```
+    *(Note: Pylint configuration can be added to `pyproject.toml` or a `.pylintrc` file if needed to customize checks.)*
+
+*   **Mypy (Static Type Checking):**
+    To check for type consistency:
+    ```bash
+    poetry run mypy .
+    ```
+    Or for a stricter check (recommended):
+    ```bash
+    poetry run mypy --strict .
+    ```
+    *(Note: Mypy configuration can be added to `pyproject.toml` or `mypy.ini`.)*
+
+### Running Tests
+
+To run the unit tests:
 ```bash
 poetry run python -m unittest discover tests
 ```
-
 Or, if you prefer `pytest` (you'd need to add it to dev dependencies in `pyproject.toml`):
 ```bash
 poetry add pytest --group dev
 poetry run pytest
 ```
+*(This was already in the "Development" section, but it's good to have it mentioned or linked from HACKING too, or consolidate "Development" into "HACKING")*
 
 ## Contributing
 

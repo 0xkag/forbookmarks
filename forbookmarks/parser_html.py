@@ -1,6 +1,16 @@
-from bs4 import BeautifulSoup
+# pylint: disable=broad-except, R1732
+# R1732: consider-using-with (for open in __main__ block)
+"""
+HTML Bookmark Parser for forbookmarks.
+"""
+from typing import Dict, Iterator, List, Union
+from bs4 import BeautifulSoup, Tag
 
-def parse_html_bookmarks(file_path):
+# Define a type alias for a bookmark dictionary for clarity
+BookmarkData = Dict[str, Union[str, List[str]]]
+
+
+def parse_html_bookmarks(file_path: str) -> Iterator[BookmarkData]:
     """
     Parses an HTML bookmarks file and yields bookmark data.
 
@@ -8,12 +18,12 @@ def parse_html_bookmarks(file_path):
         file_path (str): Path to the HTML bookmarks file.
 
     Yields:
-        dict: A dictionary containing 'url' and 'title' for each bookmark.
-              Returns an empty dict if parsing fails or no bookmarks are found.
+        Iterator[BookmarkData]: An iterator of dictionaries,
+                                 each containing 'url', 'title', and 'path'.
     """
     try:
         with open(file_path, 'r', encoding='utf-8') as f:
-            content = f.read()
+            content: str = f.read()
     except FileNotFoundError:
         print(f"Error: File not found at {file_path}")
         return
@@ -21,72 +31,92 @@ def parse_html_bookmarks(file_path):
         print(f"Error reading file {file_path}: {e}")
         return
 
-    soup = BeautifulSoup(content, 'lxml')
+    soup: BeautifulSoup = BeautifulSoup(content, 'lxml')
+    bookmarks_found: bool = False
 
-    # Bookmarks are typically <a> tags.
-    # A common pattern is that they are often within <DT><A ...> or similar structures.
-    # For a simpler first pass, let's find all <a> tags with an href attribute.
-    # We will need to be mindful of other <a> tags that are not bookmarks (e.g., in headers/footers if any).
-    # Most bookmark files use <DT><H3> for folder names and <DT><A> for bookmarks.
-    
-    bookmarks_found = False
     for link_tag in soup.find_all('a', href=True):
-        url = link_tag.get('href')
-        title = link_tag.string
-        
-        # Basic filtering:
-        # - Ensure it's likely a real bookmark (e.g., http/https scheme).
-        # - Avoid javascript links or internal anchors if they are not bookmarks.
-        if url and (url.startswith('http://') or url.startswith('https://') or url.startswith('ftp://')):
-            bookmarks_found = True
-            # For now, folder structure is not extracted, will be added in a future step.
-            # To get the folder, one would typically walk up the parse tree
-            # or look for preceding <H3> tags within the same <DL><p> structure.
-            yield {
-                'url': url.strip(),
-                'title': title.strip() if title else '',
-                'path': [] # Placeholder for folder path
-            }
-    
+        if not isinstance(link_tag, Tag):
+            continue
+
+        url_val: Union[str, List[str], None] = link_tag.get('href')
+        title_tag_content: Union[str, Tag, None] = link_tag.string
+
+        url: str
+        if isinstance(url_val, list):
+            url = url_val[0] if url_val else ""
+        elif isinstance(url_val, str):
+            url = url_val
+        else:
+            continue  # Skip if URL is not a string or list of strings
+
+        if not (
+            url.startswith('http://') or
+            url.startswith('https://') or
+            url.startswith('ftp://')
+        ):
+            continue
+
+        title: str
+        if title_tag_content is not None and isinstance(title_tag_content, str):
+            title = title_tag_content.strip()
+        else:
+            title = ''
+
+        bookmarks_found = True
+        yield {
+            'url': url.strip(),
+            'title': title,
+            'path': []  # Path extraction not yet in simple HTML parser
+        }
+
     if not bookmarks_found:
-        # This helps differentiate between an empty file and a file with no valid bookmark links.
-        # Depending on strictness, could raise an error or return a specific signal.
         print(f"Warning: No valid bookmarks found in {file_path}")
+
 
 if __name__ == '__main__':
     # Example usage for testing the parser directly
-    # Create a dummy bookmarks.html file for this to work
-    # Test with a sample bookmarks.html:
-    sample_html_content = """
-    <!DOCTYPE NETSCAPE-Bookmark-file-1>
-    <META HTTP-EQUIV="Content-Type" CONTENT="text/html; charset=UTF-8">
-    <TITLE>Bookmarks</TITLE>
-    <H1>Bookmarks</H1>
-    <DL><p>
-        <DT><H3 ADD_DATE="1600000000" LAST_MODIFIED="1600000000">Folder 1</H3>
-        <DL><p>
-            <DT><A HREF="http://example.com/page1" ADD_DATE="1600000001">Example Page 1</A>
-            <DT><A HREF="https://example.org/page2" ADD_DATE="1600000002">Example Page 2</A>
-        </DL><p>
-        <DT><H3 ADD_DATE="1600000000" LAST_MODIFIED="1600000000">Empty Folder</H3>
-        <DL><p></DL><p>
-        <DT><A HREF="http://another-example.com" ADD_DATE="1600000003">Another Example</A>
-    </DL><p>
-    """
-    with open("bookmarks_sample.html", "w", encoding="utf-8") as f:
-        f.write(sample_html_content)
+    # pylint: disable=R1732  # Allow simple open().close() in this test block
+    SAMPLE_HTML_CONTENT: str = (
+        "<!DOCTYPE NETSCAPE-Bookmark-file-1>\n"
+        '<META HTTP-EQUIV="Content-Type" '
+        'CONTENT="text/html; charset=UTF-8">\n'
+        "<TITLE>Bookmarks</TITLE>\n"
+        "<H1>Bookmarks</H1>\n"
+        "<DL><p>\n"
+        '    <DT><H3 ADD_DATE="1600000000" '
+        'LAST_MODIFIED="1600000000">Folder 1</H3>\n'
+        "    <DL><p>\n"
+        '        <DT><A HREF="http://example.com/page1" '
+        'ADD_DATE="1600000001">'
+        "Example Page 1</A>\n"
+        '        <DT><A HREF="https://example.org/page2" '
+        'ADD_DATE="1600000002">'
+        "Example Page 2</A>\n"
+        "    </DL><p>\n"
+        '    <DT><A HREF="http://another-example.com" '
+        'ADD_DATE="1600000003">'
+        "Another Example</A>\n"
+        "</DL><p>\n"
+    )
+    SAMPLE_FILE_PATH: str = "bookmarks_sample.html"
+    with open(SAMPLE_FILE_PATH, "w", encoding="utf-8") as file_handler:
+        file_handler.write(SAMPLE_HTML_CONTENT)
 
-    print("Testing with bookmarks_sample.html:")
-    for bm in parse_html_bookmarks("bookmarks_sample.html"):
-        print(bm)
-    
-    # Test with a non-existent file
+    print(f"Testing with {SAMPLE_FILE_PATH}:")
+    for bm_data_item in parse_html_bookmarks(SAMPLE_FILE_PATH):
+        print(bm_data_item)
+
     print("\nTesting with non_existent_file.html:")
-    for bm in parse_html_bookmarks("non_existent_file.html"):
-        print(bm) # Should print error and not loop
+    for bm_data_item in parse_html_bookmarks("non_existent_file.html"):
+        # Should print error and not loop
+        print(bm_data_item)
 
-    # Test with an empty file
-    open("empty_bookmarks.html", "w").close()
-    print("\nTesting with empty_bookmarks.html:")
-    for bm in parse_html_bookmarks("empty_bookmarks.html"):
-        print(bm) # Should print warning and not loop
+    EMPTY_FILE_PATH: str = "empty_bookmarks.html"
+    # The R1732 disable at the top of the file or specifically here might be
+    # needed if pylint is very strict about this __main__ block.
+    # For a simple script like this, it's minor.
+    open(EMPTY_FILE_PATH, "w", encoding="utf-8").close()
+    print(f"\nTesting with {EMPTY_FILE_PATH}:")
+    for bm_data_item in parse_html_bookmarks(EMPTY_FILE_PATH):
+        # Should print warning and not loop
+        print(bm_data_item)

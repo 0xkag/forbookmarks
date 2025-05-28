@@ -1,42 +1,55 @@
-import click
+# pylint: disable=broad-except, too-many-arguments, too-many-locals, too-many-branches
+"""
+Main CLI script for forbookmarks.
+Uses click for command-line interface.
+"""
+import os
 import subprocess
-import os # For environment variables
+from typing import List, Dict, Iterator, Union # Removed Any
+
+import click
 
 # Attempt to import parsers
+# Type checking for these dynamic imports can be tricky.
+# We assume they are present and conform to an expected interface.
+BookmarkData = Dict[str, Union[str, List[str]]]
+ParserFunction = Iterator[BookmarkData]
+
 try:
     from .parser_html import parse_html_bookmarks
     from .parser_json import parse_json_bookmarks
 except ImportError:
-    # This allows the script to be run directly for development/testing if parsers are in the same dir,
-    # but for package structure, the relative import is preferred.
-    # If Poetry/pip installs it, `from .parser_...` is correct.
-    # If running `python forbookmarks/__main__.py` directly from project root, this might fail.
-    # Proper execution via `poetry run forbookmarks ...` should work.
     try:
-        from parser_html import parse_html_bookmarks
-        from parser_json import parse_json_bookmarks
+        from parser_html import parse_html_bookmarks # type: ignore
+        from parser_json import parse_json_bookmarks # type: ignore
     except ImportError:
-        # Fallback for when __main__ is executed as a script and parsers are not found.
-        # This indicates an issue with how the script is run or PYTHONPATH.
-        # For now, we'll let it raise an error if they are truly missing.
-        click.echo("Error: Parsers not found. Ensure the package is installed correctly or running from the correct directory.", err=True)
-        # A more robust solution might involve adjusting sys.path or having a different entry point for direct script execution.
-        # However, for a poetry project, `poetry run` is the standard.
-        # We will assume for now that if this fails, the user needs to run with poetry.
-        pass
-
+        # This case should ideally not happen if run via poetry
+        click.echo(
+            "Error: Parsers not found. Ensure package is installed.",
+            err=True
+        )
+        # To satisfy mypy about the parsers possibly not being defined:
+        def parse_html_bookmarks(file_path: str) -> ParserFunction:
+            """Dummy parser."""
+            click.echo(f"Dummy HTML parser for {file_path}", err=True)
+            return iter([])
+        def parse_json_bookmarks(file_path: str) -> ParserFunction:
+            """Dummy parser."""
+            click.echo(f"Dummy JSON parser for {file_path}", err=True)
+            return iter([])
 
 @click.group()
-def main():
+def main() -> None:
     """
-    A tool to process web browser bookmarks, similar to formail for mbox files.
+    A tool to process web browser bookmarks,
+    similar to formail for mbox files.
     """
-    pass
+    # W0107: Unnecessary pass statement (unnecessary-pass) removed
 
 @main.command()
 @click.option(
     '--input-file', '-f',
-    type=click.Path(exists=True, dir_okay=False, readable=True),
+    type=click.Path(exists=True, dir_okay=False, readable=True, resolve_path=True),
     required=True,
     help="Path to the bookmarks file."
 )
@@ -47,120 +60,114 @@ def main():
     help="Format of the bookmarks file."
 )
 @click.option(
-    '--exec', '-x', 'exec_command_str', # Renamed to avoid conflict with exec keyword
+    '--exec', '-x', 'exec_command_str',
     type=str,
     required=True,
-    help="Command to execute for each bookmark. Use {URL}, {TITLE}, {PATH} placeholders."
+    help="Command to execute for each bookmark. Use {URL}, {TITLE}, {PATH}."
 )
 @click.option(
-    '--env-vars / --no-env-vars',
-    default=True, # Provide data as environment variables by default
-    help="Pass bookmark data as environment variables (BOOKMARK_URL, BOOKMARK_TITLE, BOOKMARK_PATH_STR, BOOKMARK_PATH_0, ...). Default is true."
+    '--env-vars/--no-env-vars',
+    default=True,
+    help="Pass data as env vars (BOOKMARK_URL, etc.). Default is true."
 )
 @click.option(
-    '--args / --no-args',
-    default=False, # Do not pass as command line arguments by default
-    help="Pass bookmark data as command line arguments to the executed command. Note: this appends to the command string. Ensure your command handles extra arguments."
+    '--args/--no-args',
+    default=False,
+    help="Pass bookmark data as command line arguments."
 )
 @click.option(
     '--path-separator',
     default='/',
     show_default=True,
-    help="Separator for joining folder path elements in BOOKMARK_PATH_STR or for command line arguments."
+    help="Separator for folder path elements."
 )
-def process(input_file, input_format, exec_command_str, env_vars, args, path_separator):
+def process( # pylint: disable=too-many-arguments, too-many-locals
+    input_file: str,
+    input_format: str,
+    exec_command_str: str,
+    env_vars: bool,
+    args: bool,
+    path_separator: str
+) -> None:
+    # pylint: disable=line-too-long
     """
     Process bookmarks from the given file and execute a command for each.
-    
-    Bookmark data can be passed to the executed command as:
-    1. Environment variables (default):
-       - BOOKMARK_URL: The URL of the bookmark.
-       - BOOKMARK_TITLE: The title of the bookmark.
-       - BOOKMARK_PATH_STR: Full folder path as a single string (e.g., "Folder/Subfolder").
-       - BOOKMARK_PATH_0, BOOKMARK_PATH_1, ...: Path components (e.g., BOOKMARK_PATH_0="Folder", BOOKMARK_PATH_1="Subfolder").
-    2. Command line arguments (if --args is used):
-       The URL, Title, and Path components will be appended to the command.
-       Example: if --exec "my_script.sh" and a bookmark has path "F1/F2", URL "url", Title "title",
-       the command might become: `my_script.sh "url" "title" "F1" "F2"`
-    3. Placeholders in the --exec command string:
-       - {URL}: Replaced by the bookmark's URL.
-       - {TITLE}: Replaced by the bookmark's title.
-       - {PATH}: Replaced by the bookmark's full path string.
-       These placeholders are processed first.
+
+    Bookmark data can be passed as:
+    1. Environment variables (default): BOOKMARK_URL, BOOKMARK_TITLE,
+       BOOKMARK_PATH_STR, BOOKMARK_PATH_0, ...
+    2. Command line arguments (if --args is used).
+    3. Placeholders in --exec: {URL}, {TITLE}, {PATH}.
     """
-    
-    bookmarks = []
+    # pylint: enable=line-too-long
+    bookmarks: ParserFunction
+
     if input_format == 'html':
-        # Assuming parse_html_bookmarks is available
         bookmarks = parse_html_bookmarks(input_file)
     elif input_format == 'json':
-        # Assuming parse_json_bookmarks is available
         bookmarks = parse_json_bookmarks(input_file)
     else:
+        # Should be caught by click.Choice, but as a safeguard:
         click.echo(f"Error: Unsupported input format '{input_format}'.", err=True)
         return
 
-    if not bookmarks:
-        click.echo("No bookmarks found or an error occurred during parsing.")
-        return
+    bookmark_iterator: Iterator[BookmarkData] = iter(bookmarks)
 
-    for bookmark in bookmarks:
-        url = bookmark.get('url', '')
-        title = bookmark.get('title', '')
-        path_list = bookmark.get('path', [])
-        path_str = path_separator.join(path_list)
+    for bookmark_item in bookmark_iterator:
+        url: str = str(bookmark_item.get('url', ''))
+        title: str = str(bookmark_item.get('title', ''))
+        path_list: List[str] = [str(p) for p in bookmark_item.get('path', []) if p]
+        path_str: str = path_separator.join(path_list)
 
-        # Prepare environment variables
-        current_env = os.environ.copy()
+        current_env: Dict[str, str] = os.environ.copy()
         if env_vars:
             current_env['BOOKMARK_URL'] = url
             current_env['BOOKMARK_TITLE'] = title
             current_env['BOOKMARK_PATH_STR'] = path_str
             for i, part in enumerate(path_list):
                 current_env[f'BOOKMARK_PATH_{i}'] = part
-        
-        # Prepare command with placeholders
-        final_command_str = exec_command_str.replace('{URL}', url).replace('{TITLE}', title).replace('{PATH}', path_str)
-        
-        # Prepare command arguments
-        cmd_list = []
-        # A more robust way to parse the command string if it has spaces and quotes
-        # For now, we'll split by space, which is naive for complex commands.
-        # Consider shlex.split for better parsing if this becomes an issue.
-        cmd_list.extend(final_command_str.split()) # Basic split, may need shlex for robustness
+
+        # C0301: Line too long (221/100) - Reformatting
+        final_command_str: str = exec_command_str.replace('{URL}', url)
+        final_command_str = final_command_str.replace('{TITLE}', title)
+        final_command_str = final_command_str.replace('{PATH}', path_str)
+
+        # Using shlex.split for robust command parsing is better,
+        # but for now, simple split.
+        cmd_list: List[str] = final_command_str.split()
 
         if args:
             cmd_list.append(url)
             cmd_list.append(title)
-            cmd_list.extend(path_list) # Add path components as separate arguments
+            cmd_list.extend(path_list)
 
         if not cmd_list:
-            click.echo("Error: Command to execute is empty after processing.", err=True)
+            click.echo("Error: Command to execute is empty.", err=True)
             continue
 
         click.echo(f"Executing: {' '.join(cmd_list)}")
         click.echo(f"  URL: {url}")
         click.echo(f"  Title: {title}")
         click.echo(f"  Path: {path_str}")
-        
+
         try:
-            # Using shell=False is generally safer, but requires cmd_list to be well-formed.
-            # If shell=True is needed, ensure final_command_str is carefully constructed to avoid injection.
-            # For now, with cmd_list, shell=False is appropriate.
-            process_result = subprocess.run(cmd_list, env=current_env, capture_output=True, text=True, check=False)
+            # pylint: disable=subprocess-run-check
+            process_result: subprocess.CompletedProcess[str] = subprocess.run(
+                cmd_list, env=current_env, capture_output=True, text=True
+            )
             if process_result.stdout:
                 click.echo(f"  Stdout: {process_result.stdout.strip()}")
             if process_result.stderr:
                 click.echo(f"  Stderr: {process_result.stderr.strip()}", err=True)
             if process_result.returncode != 0:
-                click.echo(f"  Command exited with error code: {process_result.returncode}", err=True)
-
+                click.echo(
+                    f"  Command exited with error: {process_result.returncode}",
+                    err=True
+                )
         except FileNotFoundError:
             click.echo(f"Error: Command not found: {cmd_list[0]}", err=True)
         except Exception as e:
-            click.echo(f"Error executing command '{' '.join(cmd_list)}': {e}", err=True)
+            click.echo(f"Error executing '{' '.join(cmd_list)}': {e}", err=True)
 
 if __name__ == '__main__':
-    # This is primarily for poetry to run. 
-    # If run directly as `python forbookmarks/__main__.py`, ensure parsers are findable.
     main()
