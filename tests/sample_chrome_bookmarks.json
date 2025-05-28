@@ -1,0 +1,16 @@
+{
+    "roots": {
+        "bookmark_bar": {
+            "children": [
+                {"name": "Google", "type": "url", "url": "https://google.com"},
+                {
+                    "name": "Tech Blogs", "type": "folder", "children": [
+                        {"name": "Ars Technica", "type": "url", "url": "https://arstechnica.com"}
+                    ]
+                }
+            ],
+            "name": "Bookmarks bar", "type": "folder"
+        }
+    },
+    "version": 1
+}

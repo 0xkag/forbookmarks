@@ -1,0 +1,19 @@
+[tool.poetry]
+name = "forbookmarks"
+version = "0.1.0"
+description = "A tool to process web browser bookmarks, similar to formail for mbox files."
+authors = ["Your Name <you@example.com>"] # Placeholder, will be filled by user if necessary
+readme = "README.md"
+
+[tool.poetry.dependencies]
+python = "^3.11"
+click = "^8.0"
+beautifulsoup4 = "^4.12" # Or latest stable
+lxml = "^5.1" # Or latest stable
+
+[tool.poetry.scripts]
+forbookmarks = "forbookmarks.__main__:main"
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
