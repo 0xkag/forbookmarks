@@ -22,23 +22,23 @@ def parse_html_bookmarks(file_path: str) -> Iterator[BookmarkData]:
                                  each containing 'url', 'title', and 'path'.
     """
     try:
-        with open(file_path, 'r', encoding='utf-8') as f:
-            content: str = f.read()
+        with open(file_path, "r", encoding="utf-8") as file_handler:
+            content: str = file_handler.read()
     except FileNotFoundError:
         print(f"Error: File not found at {file_path}")
         return
-    except Exception as e:
-        print(f"Error reading file {file_path}: {e}")
+    except Exception as exception:
+        print(f"Error reading file {file_path}: {exception}")
         return
 
-    soup: BeautifulSoup = BeautifulSoup(content, 'lxml')
+    soup: BeautifulSoup = BeautifulSoup(content, "lxml")
     bookmarks_found: bool = False
 
-    for link_tag in soup.find_all('a', href=True):
+    for link_tag in soup.find_all("a", href=True):
         if not isinstance(link_tag, Tag):
             continue
 
-        url_val: Union[str, List[str], None] = link_tag.get('href')
+        url_val: Union[str, List[str], None] = link_tag.get("href")
         title_tag_content: Union[str, Tag, None] = link_tag.string
 
         url: str
@@ -47,12 +47,12 @@ def parse_html_bookmarks(file_path: str) -> Iterator[BookmarkData]:
         elif isinstance(url_val, str):
             url = url_val
         else:
-            continue  # Skip if URL is not a string or list of strings
+            continue
 
         if not (
-            url.startswith('http://') or
-            url.startswith('https://') or
-            url.startswith('ftp://')
+            url.startswith("http://")
+            or url.startswith("https://")
+            or url.startswith("ftp://")
         ):
             continue
 
@@ -60,20 +60,20 @@ def parse_html_bookmarks(file_path: str) -> Iterator[BookmarkData]:
         if title_tag_content is not None and isinstance(title_tag_content, str):
             title = title_tag_content.strip()
         else:
-            title = ''
+            title = ""
 
         bookmarks_found = True
         yield {
-            'url': url.strip(),
-            'title': title,
-            'path': []  # Path extraction not yet in simple HTML parser
+            "url": url.strip(),
+            "title": title,
+            "path": [],  # Path extraction not yet in simple HTML parser
         }
 
     if not bookmarks_found:
         print(f"Warning: No valid bookmarks found in {file_path}")
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     # Example usage for testing the parser directly
     # pylint: disable=R1732  # Allow simple open().close() in this test block
     SAMPLE_HTML_CONTENT: str = (

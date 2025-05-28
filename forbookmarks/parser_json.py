@@ -13,9 +13,7 @@ JsonNode = Dict[str, Any]
 
 
 def _extract_bookmarks_recursive(
-    node: JsonNode,
-    path_parts: List[str],
-    browser_type: str
+    node: JsonNode, path_parts: List[str], browser_type: str
 ) -> Iterator[BookmarkData]:
     """
     Recursively extracts bookmarks from a node in the JSON tree.
@@ -28,32 +26,34 @@ def _extract_bookmarks_recursive(
     Yields:
         Iterator[BookmarkData]: Bookmark data dictionaries.
     """
-    node_type: str = node.get('type', '')
-    children: List[JsonNode] = node.get('children', [])
+    node_type: str = node.get("type", "")
+    children: List[JsonNode] = node.get("children", [])
     current_path: List[str] = path_parts
 
-    if browser_type == 'firefox':
-        if node_type == 'text/x-moz-place' and 'uri' in node:
+    if browser_type == "firefox":
+        if node_type == "text/x-moz-place" and "uri" in node:
             yield {
-                'url': str(node['uri']),
-                'title': str(node.get('title', '')),
-                'path': path_parts[:]
+                "url": str(node["uri"]),
+                "title": str(node.get("title", "")),
+                "path": path_parts[:],
             }
-        elif node_type == 'text/x-moz-place-container' and children:
-            folder_name: str = str(node.get('title', 'Unnamed Folder'))
+        elif node_type == "text/x-moz-place-container" and children:
+            folder_name: str = str(node.get("title", "Unnamed Folder"))
             current_path = path_parts + [folder_name]
             for child in children:
-                yield from _extract_bookmarks_recursive(child, current_path, browser_type)
+                yield from _extract_bookmarks_recursive(
+                    child, current_path, browser_type
+                )
 
-    elif browser_type == 'chrome':
-        if node_type == 'url' and 'url' in node:
+    elif browser_type == "chrome":
+        if node_type == "url" and "url" in node:
             yield {
-                'url': str(node['url']),
-                'title': str(node.get('name', '')),  # Chrome uses 'name'
-                'path': path_parts[:]
+                "url": str(node["url"]),
+                "title": str(node.get("name", "")),  # Chrome uses 'name'
+                "path": path_parts[:],
             }
-        elif node_type == 'folder' and children:
-            folder_name = str(node.get('name', 'Unnamed Folder'))
+        elif node_type == "folder" and children:
+            folder_name = str(node.get("name", "Unnamed Folder"))
             current_path = path_parts + [folder_name]
             for child in children:
                 yield from _extract_bookmarks_recursive(
@@ -72,45 +72,41 @@ def parse_json_bookmarks(file_path: str) -> Iterator[BookmarkData]:
         Iterator[BookmarkData]: Bookmark data dictionaries.
     """
     try:
-        with open(file_path, 'r', encoding='utf-8') as f:
-            data: JsonNode = json.load(f)
+        with open(file_path, "r", encoding="utf-8") as file_handler:
+            data: JsonNode = json.load(file_handler)
     except FileNotFoundError:
         print(f"Error: File not found at {file_path}")
         return
     except json.JSONDecodeError:
         print(f"Error: Could not decode JSON from {file_path}")
         return
-    except Exception as e:
-        print(f"Error reading file {file_path}: {e}")
+    except Exception as exception:
+        print(f"Error reading file {file_path}: {exception}")
         return
 
-    if 'roots' in data and isinstance(data['roots'], dict):  # Likely Chrome
-        browser: str = 'chrome'
-        roots_dict: Dict[str, JsonNode] = data['roots']
+    if "roots" in data and isinstance(data["roots"], dict):  # Likely Chrome
+        browser: str = "chrome"
+        roots_dict: Dict[str, JsonNode] = data["roots"]
         for root_name, root_node in roots_dict.items():
-            if isinstance(root_node, dict) and 'children' in root_node:
-                folder_name: str = str(root_node.get('name', root_name))
+            if isinstance(root_node, dict) and "children" in root_node:
+                folder_name: str = str(root_node.get("name", root_name))
                 yield from _extract_bookmarks_recursive(
                     root_node, [folder_name], browser
                 )
-    elif 'children' in data and isinstance(data['children'], list):  # Likely Firefox
-        browser = 'firefox'
-        # Root title in Firefox (can be empty)
-        initial_folder_name: str = str(data.get('title', ''))
-        # If root title is empty, path starts empty, else with root title
-        initial_path: List[str] = \
-            [initial_folder_name] if initial_folder_name else []
+    elif "children" in data and isinstance(data["children"], list):  # Likely Firefox
+        browser = "firefox"
+        # Root title in Firefox
+        initial_folder_name: str = str(data.get("title", ""))
+        initial_path: List[str] = [initial_folder_name] if initial_folder_name else []
 
-        for child_node in data['children']:
-            yield from _extract_bookmarks_recursive(
-                child_node, initial_path, browser
-            )
+        for child_node in data["children"]:
+            yield from _extract_bookmarks_recursive(child_node, initial_path, browser)
     else:
         print(f"Warning: Unknown JSON bookmark structure in {file_path}")
         return
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     # Create dummy Chrome sample
     CHROME_SAMPLE_CONTENT: JsonNode = {
         "checksum": "abcdef123456",
@@ -125,27 +121,27 @@ if __name__ == '__main__':
                             {
                                 "name": "Ars Technica",
                                 "type": "url",
-                                "url": "https://arstechnica.com"
+                                "url": "https://arstechnica.com",
                             }
-                        ]
-                    }
+                        ],
+                    },
                 ],
                 "name": "Bookmarks bar",
-                "type": "folder"
+                "type": "folder",
             },
             "other": {
                 "children": [
                     {
                         "name": "Mozilla",
                         "type": "url",
-                        "url": "https://mozilla.org"
+                        "url": "https://mozilla.org",
                     }
                 ],
                 "name": "Other Bookmarks",
-                "type": "folder"
-            }
+                "type": "folder",
+            },
         },
-        "version": 1
+        "version": 1,
     }
     CHROME_SAMPLE_PATH: str = "chrome_bookmarks_sample.json"
     with open(CHROME_SAMPLE_PATH, "w", encoding="utf-8") as f_out:
@@ -159,7 +155,7 @@ if __name__ == '__main__':
             {
                 "title": "Mozilla Firefox",
                 "uri": "https://www.mozilla.org/firefox/",
-                "type": "text/x-moz-place"
+                "type": "text/x-moz-place",
             },
             {
                 "title": "Work Stuff",
@@ -168,16 +164,16 @@ if __name__ == '__main__':
                     {
                         "title": "Internal Wiki",
                         "uri": "http://internal.example.com/wiki",
-                        "type": "text/x-moz-place"
+                        "type": "text/x-moz-place",
                     }
-                ]
+                ],
             },
             {
                 "title": "A Single Bookmark",
                 "uri": "https://single.example.com/",
-                "type": "text/x-moz-place"
-            }
-        ]
+                "type": "text/x-moz-place",
+            },
+        ],
     }
     FIREFOX_SAMPLE_PATH: str = "firefox_bookmarks_sample.json"
     with open(FIREFOX_SAMPLE_PATH, "w", encoding="utf-8") as f_out:
