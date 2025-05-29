@@ -1,0 +1,1 @@
+{"title": "Bookmarks Menu", "root": "placesRoot", "children": [{"title": "Mozilla Firefox", "uri": "https://www.mozilla.org/firefox/", "type": "text/x-moz-place"}, {"title": "Work Stuff", "type": "text/x-moz-place-container", "children": [{"title": "Internal Wiki", "uri": "http://internal.example.com/wiki", "type": "text/x-moz-place"}]}]}
