@@ -1,7 +1,5 @@
 """Tests for the CLI interface of forbookmarks."""
 
-"""Tests for the CLI interface of forbookmarks."""
-
 import unittest
 import os
 import tempfile

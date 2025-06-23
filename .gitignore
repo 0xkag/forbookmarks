@@ -1,0 +1,62 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+
+# Virtualenv
+env/
+venv/
+.env
+.venv
+ENV/
+VENV/
+
+# Poetry
+# poetry.lock # Often committed, but can be ignored if preferred by project policy. For now, let's assume it's committed, so don't add it here.
+# .pids/
+# .poetry/
+# .cache/ # General cache, might be too broad
+
+# Pytest
+.pytest_cache/
+.coverage
+*.lcov
+htmlcov/
+.tox/
+
+# Mypy
+.mypy_cache/
+
+# Editors
+.vscode/
+.idea/
+*.sublime-project
+*.sublime-workspace
+
+# OS generated files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db

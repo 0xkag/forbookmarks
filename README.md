@@ -22,7 +22,7 @@
 1.  **Clone the repository (if you haven't already):**
     ```bash
     git clone <repository_url>
-    cd forbookmarks 
+    cd forbookmarks
     ```
     *(Replace `<repository_url>` with the actual URL of this project's repository if applicable, otherwise this step is for users who clone it manually)*
 
@@ -93,7 +93,7 @@ poetry run forbookmarks process [OPTIONS]
     # another_script.py content:
     # import sys
     # print(f"URL: {sys.argv[1]}, Title: {sys.argv[2]}, Path: {'/'.join(sys.argv[3:])}")
-    
+
     poetry run forbookmarks process -f firefox_bookmarks.json -i json -x "python another_script.py" --args --no-env-vars
     ```
 
